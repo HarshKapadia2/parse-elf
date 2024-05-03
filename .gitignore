@@ -1,0 +1,8 @@
+*.out
+*.o
+*.d
+.*.swp
+pelf
+compile_commands.json
+.cache/
+
