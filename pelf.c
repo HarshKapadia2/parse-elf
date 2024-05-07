@@ -1,7 +1,10 @@
+#ifndef _STDIO_H
+#include <stdio.h>
+#endif // _STDIO_H
+
 #include "pelf.h"
 #include <stdalign.h>
 #include <stddef.h> // For 'NULL'
-#include <stdio.h>
 #include <stdlib.h> // For exit(), malloc() and free()
 #include <string.h> // For strcmp()
 
@@ -9,6 +12,7 @@ elf64_hdr *ELF64_HDR = NULL;
 
 int main(int argc, char *argv[]) {
     char *file_path = NULL;
+    FILE *file = NULL;
 
     // Get file path from command line args
     if (argc < 2) {
@@ -21,7 +25,10 @@ int main(int argc, char *argv[]) {
 
     // Check if file exists, is an ELF and is a 64-bit ELF
     if (is_file_valid(file_path)) {
-        if (get_elf_class(file_path) != 2) {
+        file = fopen(file_path, "r");
+
+        if (get_elf_class(file) != 2) {
+            fclose(file);
             printf("ERROR: This utility can only parse 64-bit ELF files.\n");
             exit(1);
         }
@@ -31,18 +38,22 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse ELF file header
-    parse_elf64_hdr(file_path);
+    parse_elf64_hdr(file);
     print_elf64_hdr();
+
+    // Cleanup
+    free(ELF64_HDR);
+    fclose(file);
 
     return 0;
 }
 
 // Parse the 64-bit ELF file header
-void parse_elf64_hdr(char *file_path) {
-    FILE *file = fopen(file_path, "r");
+void parse_elf64_hdr(FILE *file) {
     char *file_data = (char *)malloc(sizeof(char) * 65);
     ELF64_HDR = (elf64_hdr *)malloc(sizeof(elf64_hdr));
 
+    fseek(file, 0L, SEEK_SET);
     fgets(file_data, 65, file);
 
     for (int i = 0; i < 16; i++) {
@@ -63,8 +74,9 @@ void parse_elf64_hdr(char *file_path) {
     ELF64_HDR->e_shnum = *(file_data + 60);
     ELF64_HDR->e_shstrndx = *(file_data + 62);
 
+    // Cleanup
+    fseek(file, 0L, SEEK_SET);
     free(file_data);
-    fclose(file);
 }
 
 // Print the 64-bit ELF file header
@@ -104,20 +116,27 @@ void print_elf64_hdr() {
 
 // Get the first four bytes of the file
 // If the file is an ELF, this will be the magic number
-char *get_magic_num(char *file_path) {
-    FILE *file = fopen(file_path, "r");
+char *get_magic_num(FILE *file) {
     char *file_data = (char *)malloc(sizeof(char) * 5);
+
+    fseek(file, 0L, SEEK_SET);
     fgets(file_data, 5, file);
+    fseek(file, 0L, SEEK_SET);
 
     return file_data;
 }
 
 // Get the class of an ELF: 32-bit or 64-bit
-int get_elf_class(char *file_path) {
-    FILE *file = fopen(file_path, "r");
+int get_elf_class(FILE *file) {
     char *file_data = (char *)malloc(sizeof(char) * 6);
+
+    fseek(file, 0L, SEEK_SET);
     fgets(file_data, 6, file);
+
     int elf_class = *(file_data + 4);
+
+    // Cleanup
+    fseek(file, 0L, SEEK_SET);
     free(file_data);
 
     return elf_class;
@@ -130,16 +149,18 @@ bool is_file_valid(char *file_path) {
     if (file == NULL) {
         return false;
     } else {
-        fclose(file);
-
         // Check if file is an ELF
         char *elf_magic_num = "\x7f"
                               "ELF";
-        char *file_data = get_magic_num(file_path);
+        char *file_data = get_magic_num(file);
+
+        fclose(file);
+
         if (strcmp(file_data, elf_magic_num) == 0) {
             free(file_data);
             return true;
         } else {
+            free(file_data);
             return false;
         }
     }

@@ -36,20 +36,14 @@ A simple 64-bit ELF file parser.
 
 ## Ideas/To Do
 
--	Read the file only once and not open and close it in every function.
+-	Include one structure that stores all parsed file data.
 -	Add a usage function.
 -	Include Wikipedia link while printing.
--	One file each for 32-bit and 64-bit binaries
--	Kernel module?
--	Analyze linking?
--	Installable script?
 
 ## Goals
 
 -	Parse ELF header, segment header and section header (if present and also add
 	names of sections.
--	Take input from user to get file path and maybe also which sections they
-	want.
 -	Maybe also showcase which libraries does the ELF depend on.
 	-	Esssentially the output of `ldd`.
 

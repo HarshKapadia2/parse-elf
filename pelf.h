@@ -1,6 +1,10 @@
 #ifndef PELF_H // Include Guard
 #define PELF_H
 
+#ifndef _STDIO_H
+#include <stdio.h>
+#endif // _STDIO_H
+
 #include <stdbool.h> // For 'true', 'false' and 'bool'
 #include <stdint.h>  // For unsigned integer datatypes
 
@@ -23,10 +27,10 @@ typedef struct {
 } elf64_hdr;
 
 // Function declarations
-void parse_elf64_hdr(char *file_path);
+void parse_elf64_hdr(FILE *file);
 void print_elf64_hdr();
-char *get_magic_num(char *file_path);
-int get_elf_class(char *file_path);
+char *get_magic_num(FILE *file);
+int get_elf_class(FILE *file);
 bool is_file_valid(char *file_path);
 
 #endif // PELF_H
