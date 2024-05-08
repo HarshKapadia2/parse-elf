@@ -101,13 +101,13 @@ void print_elf64_hdr() {
     printf("Machine: %#03x\n", ELF64_HDR->e_machine);
     printf("Version: %d\n", ELF64_HDR->e_version);
     printf("Entry address: %#lx\n", ELF64_HDR->e_entry);
-    printf("Program header offset: %#lx\n", ELF64_HDR->e_phoff);
-    printf("Section header offset: %#lx\n", ELF64_HDR->e_shoff);
+    printf("Program header offset: %lu B into the file\n", ELF64_HDR->e_phoff);
+    printf("Section header offset: %lu B into the file\n", ELF64_HDR->e_shoff);
     printf("Flags: %#x\n", ELF64_HDR->e_flags);
-    printf("This header's size: %dB\n", ELF64_HDR->e_ehsize);
-    printf("Program header entry size: %dB\n", ELF64_HDR->e_phentsize);
+    printf("This header's size: %d B\n", ELF64_HDR->e_ehsize);
+    printf("Program header entry size: %d B\n", ELF64_HDR->e_phentsize);
     printf("No. of program header entries: %d\n", ELF64_HDR->e_phnum);
-    printf("Section header entry size: %dB\n", ELF64_HDR->e_shentsize);
+    printf("Section header entry size: %d B\n", ELF64_HDR->e_shentsize);
     printf("No. of section header entries: %d\n", ELF64_HDR->e_shnum);
     printf("Section header string index table offset: %d\n",
            ELF64_HDR->e_shstrndx);
