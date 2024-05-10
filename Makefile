@@ -14,5 +14,7 @@ clean:
 # dependencies, i.e., the includes.
 -include pelf.d
 
-.PHONY: all clean
+format:
+	find . -name "*.c" -o -name "*.h" | xargs clang-format -i
 
+.PHONY: all clean format
