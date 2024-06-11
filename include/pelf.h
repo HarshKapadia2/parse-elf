@@ -1,12 +1,14 @@
 #ifndef PELF_H // Include Guard
 #define PELF_H
 
-#ifndef _STDIO_H
-#include <stdio.h>
-#endif // _STDIO_H
-
-#include <stdbool.h> // For 'true', 'false' and 'bool'
+#include <stdbool.h> // For bool
 #include <stdint.h>  // For unsigned integer datatypes
+#include <stdio.h>   // For FILE
+
+// Constants
+#define MAGIC_BYTE_COUNT 4
+const char *ELF_MAGIC_BYTES = "\x7F"
+                              "ELF";
 
 // Structure definitions
 typedef struct {
@@ -27,11 +29,10 @@ typedef struct {
 } elf64_hdr;
 
 // Function declarations
-void parse_elf64_hdr(FILE *file);
-void print_elf64_hdr();
-char *get_magic_num(FILE *file);
-int get_elf_class(FILE *file);
-bool is_file_valid(char *file_path);
+elf64_hdr parse_elf64_hdr(FILE *file);
+void print_elf64_hdr(const elf64_hdr *header);
+void get_magic_bytes(FILE *file, unsigned char *magic_bytes);
+uint8_t get_elf_class(FILE *file);
+bool is_magic_bytes_elf(const unsigned char *magic_bytes);
 
 #endif // PELF_H
-
