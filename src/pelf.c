@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
         file_path = argv[1];
     }
 
-    // try to open file
+    // Try to open file
     FILE *file = fopen(file_path, "rb");
     if (file == NULL) {
         fclose(file);
@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
+    // Check if file is ELF
     unsigned char magic_bytes[MAGIC_BYTE_COUNT];
     get_magic_bytes(file, magic_bytes);
     if (!is_magic_bytes_elf(magic_bytes)) {
@@ -36,7 +37,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    // Check if is ELF and is a 64-bit ELF
+    // Check if ELF file is a 64-bit ELF
     if (get_elf_class(file) != 2) {
         fclose(file);
         printf("ERROR: This utility can only parse 64-bit ELF files.\n");
@@ -55,17 +56,17 @@ int main(int argc, char *argv[]) {
 
 // Get the first MAGIC_BYTE_COUNT bytes of the file
 // If the file is an ELF, this will be the magic number
-// Seeks to beginning of file to read data
 void get_magic_bytes(FILE *file, unsigned char *magic_bytes) {
     fseek(file, 0L, SEEK_SET);
     fread(magic_bytes, sizeof(unsigned char), MAGIC_BYTE_COUNT, file);
 }
 
+// Check if file's magic bytes match an ELF's magic bytes
 bool is_magic_bytes_elf(const unsigned char *magic_bytes) {
     return memcmp(magic_bytes, ELF_MAGIC_BYTES, MAGIC_BYTE_COUNT) == 0;
 }
 
-// Get the class of an ELF: 32-bit or 64-bit
+// Get the class of an ELF: 1 (32-bit) or 2 (64-bit)
 uint8_t get_elf_class(FILE *file) {
     uint8_t elf_class;
     fseek(file, MAGIC_BYTE_COUNT, SEEK_SET);
@@ -116,3 +117,4 @@ void print_elf64_hdr(const elf64_hdr *header) {
            header->e_shstrndx);
     printf("\n");
 }
+

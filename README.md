@@ -24,6 +24,13 @@ A simple 64-bit ELF file parser.
 	$ make clean
 	```
 
+-	Optional: Formatting files
+
+	```shell
+	$ sudo apt-get install clang-format
+	$ make format
+	```
+
 ## Resources
 
 -	[Becoming an Elf-Lord](https://cpu.land/becoming-an-elf-lord)
@@ -36,14 +43,13 @@ A simple 64-bit ELF file parser.
 
 ## Ideas/To Do
 
--	Include one structure that stores all parsed file data.
 -	Add a usage function.
 -	Include Wikipedia link while printing.
 
 ## Goals
 
--	Parse ELF header, segment header and section header (if present and also add
-	names of sections.
--	Maybe also showcase which libraries does the ELF depend on.
+-	Parse ELF header, segment header and section header (if present) and also
+	add names of sections.
+-	Maybe also showcase which libraries the ELF depends on.
 	-	Esssentially the output of `ldd`.
 
