@@ -2,6 +2,7 @@
 #include <errno.h>  // For strerr()
 #include <stddef.h> // For 'NULL'
 #include <stdio.h>  // For file functions, printf()
+#include <stdlib.h> // For malloc(), free()
 #include <string.h> // For memcmp()
 
 int main(int argc, char *argv[]) {
@@ -48,7 +49,12 @@ int main(int argc, char *argv[]) {
     elf64_hdr header = parse_elf64_hdr(file);
     print_elf64_hdr(&header);
 
+    // Parse ELF section headers
+    elf64_shdr *sec_hdr_arr = parse_elf64_shdrs(file, &header);
+    print_elf64_shdrs(sec_hdr_arr, &header);
+
     // Cleanup
+    free(sec_hdr_arr);
     fclose(file);
 
     return 0;
@@ -83,6 +89,37 @@ elf64_hdr parse_elf64_hdr(FILE *file) {
     return header;
 }
 
+// Parse the 64-bit ELF file header
+elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr) {
+    elf64_shdr *sec_hdr_arr = malloc(file_hdr->e_shnum * sizeof(elf64_shdr));
+
+    fseek(file, file_hdr->e_shoff, SEEK_SET);
+    fread(sec_hdr_arr, sizeof(elf64_shdr), file_hdr->e_shnum, file);
+
+    return sec_hdr_arr;
+
+    // TODO: Figure out why the code block below doesn't work
+    //    elf64_shdr **sec_hdr_arr =
+    //        (elf64_shdr **)malloc(sizeof(elf64_shdr *) * file_hdr->e_shnum);
+    //    // uint64_t shdr_offset = file_hdr->e_shoff;
+    //
+    //    fseek(file, file_hdr->e_shoff, SEEK_SET);
+    //
+    //    for (int i = 0; i < file_hdr->e_shnum; i++) {
+    //        elf64_shdr *sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
+    //
+    //        // fseek(file, shdr_offset, SEEK_SET);
+    //        fread(sec_hdr, sizeof(file_hdr->e_shentsize), 1, file);
+    //        sec_hdr_arr[i] = sec_hdr;
+    //
+    //        // printf("Size: %lu\n", sec_hdr->sh_size);
+    //
+    //        // shdr_offset = shdr_offset + file_hdr->e_shentsize;
+    //    }
+    //
+    //    return sec_hdr_arr;
+}
+
 // Print the 64-bit ELF file header
 void print_elf64_hdr(const elf64_hdr *header) {
     printf("ELF File Header:\n");
@@ -115,6 +152,31 @@ void print_elf64_hdr(const elf64_hdr *header) {
     printf("No. of section header entries: %d\n", header->e_shnum);
     printf("Section header string index table offset: %d\n",
            header->e_shstrndx);
+    printf("\n");
+}
+
+void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
+                       const elf64_hdr *file_hdr) {
+    printf("ELF Section Headers:\n");
+
+    for (int i = 0; i < file_hdr->e_shnum; i++) {
+        const elf64_shdr sec_hdr = sec_hdr_arr[i];
+
+        printf("Entry index: %d\n", i);
+        printf("Name offset: %d B into the '.shstrtab' section\n",
+               sec_hdr.sh_name);
+        printf("Type: %#x\n", sec_hdr.sh_type);
+        printf("Flags: %#lx\n", sec_hdr.sh_flags);
+        printf("Address: %#lx\n", sec_hdr.sh_addr);
+        printf("Offset: %lu B into the file\n", sec_hdr.sh_offset);
+        printf("Size in file: %lu B\n", sec_hdr.sh_size);
+        printf("Associated section index (link): %d\n", sec_hdr.sh_link);
+        printf("Info: %d\n", sec_hdr.sh_info);
+        printf("No. of alignment bytes: %lu\n", sec_hdr.sh_addralign);
+        printf("Entry size: %lu B\n", sec_hdr.sh_entsize);
+        printf("\n");
+    }
+
     printf("\n");
 }
 
