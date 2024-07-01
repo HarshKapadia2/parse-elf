@@ -46,7 +46,7 @@ typedef struct {
 // Function declarations
 elf64_hdr parse_elf64_hdr(FILE *file);
 elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr);
-void print_elf64_hdr(const elf64_hdr *header);
+void print_elf64_hdr(const elf64_hdr *file_hdr);
 void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
                        const elf64_hdr *file_hdr);
 void get_magic_bytes(FILE *file, unsigned char *magic_bytes);
