@@ -5,6 +5,8 @@
 #include <stdlib.h> // For malloc(), free()
 #include <string.h> // For memcmp()
 
+FILE *file_temp;
+
 int main(int argc, char *argv[]) {
     char *file_path = NULL;
 
@@ -49,6 +51,8 @@ int main(int argc, char *argv[]) {
            "https://en.wikipedia.org/wiki/Executable_and_Linkable_Format\n\n");
     printf("ELF file path: %s\n\n", file_path);
 
+    file_temp = file;
+
     // Parse ELF file header
     elf64_hdr file_hdr = parse_elf64_hdr(file);
     print_elf64_hdr(&file_hdr);
@@ -56,10 +60,12 @@ int main(int argc, char *argv[]) {
     // Parse ELF section headers
     // TODO: Check if section headers exist
     elf64_shdr *sec_hdr_arr = parse_elf64_shdrs(file, &file_hdr);
-    print_elf64_shdrs(sec_hdr_arr, &file_hdr);
+    char *shstrtab = get_shstrtab(file, &file_hdr);
+    print_elf64_shdrs(sec_hdr_arr, file_hdr.e_shnum, shstrtab);
 
     // Cleanup
     free(sec_hdr_arr);
+    free(shstrtab);
     fclose(file);
 
     return 0;
@@ -125,6 +131,40 @@ elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr) {
     //    return sec_hdr_arr;
 }
 
+// Get the section header string table contents
+char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
+    elf64_shdr *shstrtab_sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
+
+    fseek(file,
+          (file_hdr->e_shoff + (file_hdr->e_shstrndx * sizeof(elf64_shdr))),
+          SEEK_SET);
+    fread(shstrtab_sec_hdr, sizeof(elf64_shdr), 1, file);
+
+    char *shstrtab = get_sec_data_using_offset(
+        file, shstrtab_sec_hdr->sh_offset, shstrtab_sec_hdr->sh_size);
+
+    for (int i = 0; i < 10; i++) {
+        printf("%s\n", shstrtab + i);
+    }
+
+    return shstrtab;
+}
+
+// Get section data using its size and an offset into the file
+char *get_sec_data_using_offset(FILE *file, uint64_t file_offset,
+                                uint64_t sec_data_size) {
+    char *sec_data = (char *)malloc(sec_data_size);
+
+    if (sec_data == NULL) {
+        return NULL;
+    }
+
+    fseek(file, file_offset, SEEK_SET);
+    fread(sec_data, sec_data_size, 1, file);
+
+    return sec_data;
+}
+
 // Print the 64-bit ELF file header
 void print_elf64_hdr(const elf64_hdr *file_hdr) {
     printf("ELF File file_header:\n");
@@ -161,19 +201,23 @@ void print_elf64_hdr(const elf64_hdr *file_hdr) {
 }
 
 // Print all the 64-bit ELF section headers
-void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
-                       const elf64_hdr *file_hdr) {
+void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
+                       char *shstrtab) {
     printf("ELF File Section Headers:\n");
-    printf("[No.]\tName\t\tType\t\tAddress\t\tOffset\n");
+    printf("[No.]\tName\n");
+    printf("\tType\t\tAddress\t\tOffset\n");
     printf("\tSize\t\tEntSize\t\tFlags  Link  \tInfo  Align\n");
     printf("-------------------------------------------------------------------"
            "--\n");
 
-    for (int i = 0; i < file_hdr->e_shnum; i++) {
+    for (int i = 0; i < num_sec; i++) {
         const elf64_shdr sec_hdr = sec_hdr_arr[i];
 
         printf("[%d]\t", i);
-        printf("%s\t\t", ".name");
+        printf("%s", (shstrtab + sec_hdr.sh_name));
+
+        printf("\n\t");
+
         printf("%#x\t\t", sec_hdr.sh_type);
         printf("%#lx\t\t", sec_hdr.sh_addr);
         printf("%lu", sec_hdr.sh_offset);
@@ -188,7 +232,7 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
         printf("%lu", sec_hdr.sh_addralign);
 
         printf("\n-------------------------------------------------------------"
-               "------\n");
+               "--------\n");
     }
 
     printf("\n");
