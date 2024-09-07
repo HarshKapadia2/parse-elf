@@ -58,6 +58,11 @@ int main(int argc, char *argv[]) {
     elf64_shdr *sec_hdr_arr = parse_elf64_shdrs(file, &file_hdr);
     print_elf64_shdrs(sec_hdr_arr, &file_hdr);
 
+    // Parse ELF segment (program) headers
+    // TODO: Check if segment headers exist
+    elf64_phdr *prog_hdr_arr = parse_elf64_phdrs(file, &file_hdr);
+    print_elf64_phdrs(prog_hdr_arr, &file_hdr);
+
     // Cleanup
     free(sec_hdr_arr);
     fclose(file);
@@ -125,6 +130,16 @@ elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr) {
     //    return sec_hdr_arr;
 }
 
+// Parse all the 64-bit ELF segment (program) headers
+elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr) {
+    elf64_phdr *prog_hdr_arr = malloc(file_hdr->e_phnum * sizeof(elf64_phdr));
+
+    fseek(file, file_hdr->e_phoff, SEEK_SET);
+    fread(prog_hdr_arr, sizeof(elf64_phdr), file_hdr->e_phnum, file);
+
+    return prog_hdr_arr;
+}
+
 // Print the 64-bit ELF file header
 void print_elf64_hdr(const elf64_hdr *file_hdr) {
     printf("ELF File file_header:\n");
@@ -188,7 +203,38 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
         printf("%lu", sec_hdr.sh_addralign);
 
         printf("\n-------------------------------------------------------------"
-               "------\n");
+               "--------\n");
+    }
+
+    printf("\n");
+}
+
+// Print all the 64-bit ELF segment (program) headers
+void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
+                       const elf64_hdr *file_hdr) {
+    printf("ELF File Segment (Program) Headers:\n");
+    printf("Type\t\tOffset\t\tVirtAddr\tPhysAddr\n");
+    printf("\t\tFileSiz\t\tMemSiz\t\tFlags  Align\n");
+    printf("-------------------------------------------------------------------"
+           "--\n");
+
+    for (int i = 0; i < file_hdr->e_phnum; i++) {
+        const elf64_phdr prog_hdr = prog_hdr_arr[i];
+
+        printf("%#x\t\t", prog_hdr.p_type);
+        printf("%#lx\t\t", prog_hdr.p_offset);
+        printf("%#lx\t\t", prog_hdr.p_vaddr);
+        printf("%#lx", prog_hdr.p_paddr);
+
+        printf("\n\t\t");
+
+        printf("%#lx\t\t", prog_hdr.p_filesz);
+        printf("%#lx\t\t", prog_hdr.p_memsz);
+        printf("%#x    ", prog_hdr.p_flags);
+        printf("%#lx", prog_hdr.p_align);
+
+        printf("\n-------------------------------------------------------------"
+               "--------\n");
     }
 
     printf("\n");

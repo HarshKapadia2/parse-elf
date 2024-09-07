@@ -11,7 +11,7 @@ const char *ELF_MAGIC_BYTES = "\x7F"
                               "ELF";
 
 // Structure definitions
-// 64-bit ELF file header
+// 64-bit ELF (file) header
 typedef struct {
     unsigned char e_ident[16];
     uint16_t e_type;
@@ -43,11 +43,26 @@ typedef struct {
     uint64_t sh_entsize;
 } elf64_shdr;
 
+// 64-bit ELF segment (program) header
+typedef struct {
+    uint32_t p_type;
+    uint32_t p_flags;
+    uint64_t p_offset;
+    uint64_t p_vaddr;
+    uint64_t p_paddr;
+    uint64_t p_filesz;
+    uint64_t p_memsz;
+    uint64_t p_align;
+} elf64_phdr;
+
 // Function declarations
 elf64_hdr parse_elf64_hdr(FILE *file);
 elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr);
+elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr);
 void print_elf64_hdr(const elf64_hdr *file_hdr);
 void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
+                       const elf64_hdr *file_hdr);
+void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
                        const elf64_hdr *file_hdr);
 void get_magic_bytes(FILE *file, unsigned char *magic_bytes);
 uint8_t get_elf_class(FILE *file);
