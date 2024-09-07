@@ -54,6 +54,7 @@ int main(int argc, char *argv[]) {
     print_elf64_hdr(&file_hdr);
 
     // Parse ELF section headers
+    // TODO: Check if section headers exist
     elf64_shdr *sec_hdr_arr = parse_elf64_shdrs(file, &file_hdr);
     print_elf64_shdrs(sec_hdr_arr, &file_hdr);
 
@@ -93,7 +94,7 @@ elf64_hdr parse_elf64_hdr(FILE *file) {
     return header;
 }
 
-// Parse the 64-bit ELF file header
+// Parse all the 64-bit ELF section headers
 elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr) {
     elf64_shdr *sec_hdr_arr = malloc(file_hdr->e_shnum * sizeof(elf64_shdr));
 
@@ -159,26 +160,35 @@ void print_elf64_hdr(const elf64_hdr *file_hdr) {
     printf("\n");
 }
 
+// Print all the 64-bit ELF section headers
 void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
                        const elf64_hdr *file_hdr) {
     printf("ELF File Section Headers:\n");
+    printf("[No.]\tName\t\tType\t\tAddress\t\tOffset\n");
+    printf("\tSize\t\tEntSize\t\tFlags  Link  \tInfo  Align\n");
+    printf("-------------------------------------------------------------------"
+           "--\n");
 
     for (int i = 0; i < file_hdr->e_shnum; i++) {
         const elf64_shdr sec_hdr = sec_hdr_arr[i];
 
-        printf("Entry index: %d\n", i);
-        printf("Name offset: %d B into the '.shstrtab' section\n",
-               sec_hdr.sh_name);
-        printf("Type: %#x\n", sec_hdr.sh_type);
-        printf("Flags: %#lx\n", sec_hdr.sh_flags);
-        printf("Address: %#lx\n", sec_hdr.sh_addr);
-        printf("Offset: %lu B into the file\n", sec_hdr.sh_offset);
-        printf("Size in file: %lu B\n", sec_hdr.sh_size);
-        printf("Associated section index (link): %d\n", sec_hdr.sh_link);
-        printf("Info: %d\n", sec_hdr.sh_info);
-        printf("No. of alignment bytes: %lu\n", sec_hdr.sh_addralign);
-        printf("Entry size: %lu B\n", sec_hdr.sh_entsize);
-        printf("\n");
+        printf("[%d]\t", i);
+        printf("%s\t\t", ".name");
+        printf("%#x\t\t", sec_hdr.sh_type);
+        printf("%#lx\t\t", sec_hdr.sh_addr);
+        printf("%lu", sec_hdr.sh_offset);
+
+        printf("\n\t");
+
+        printf("%lu\t\t", sec_hdr.sh_size);
+        printf("%lu\t\t", sec_hdr.sh_entsize);
+        printf("%#lx    ", sec_hdr.sh_flags);
+        printf("%d  \t", sec_hdr.sh_link);
+        printf("%d     ", sec_hdr.sh_info);
+        printf("%lu", sec_hdr.sh_addralign);
+
+        printf("\n-------------------------------------------------------------"
+               "------\n");
     }
 
     printf("\n");
