@@ -54,17 +54,26 @@ int main(int argc, char *argv[]) {
     print_elf64_hdr(&file_hdr);
 
     // Parse ELF section headers
-    // TODO: Check if section headers exist
-    elf64_shdr *sec_hdr_arr = parse_elf64_shdrs(file, &file_hdr);
-    print_elf64_shdrs(sec_hdr_arr, &file_hdr);
+    elf64_shdr *sec_hdr_arr = NULL;
+    if (file_hdr.e_shnum > 0) {
+        sec_hdr_arr = parse_elf64_shdrs(file, &file_hdr);
+        print_elf64_shdrs(sec_hdr_arr, &file_hdr);
+    } else {
+        printf("NOTE: No section headers were found.\n\n");
+    }
 
     // Parse ELF segment (program) headers
-    // TODO: Check if segment headers exist
-    elf64_phdr *prog_hdr_arr = parse_elf64_phdrs(file, &file_hdr);
-    print_elf64_phdrs(prog_hdr_arr, &file_hdr);
+    elf64_phdr *prog_hdr_arr = NULL;
+    if (file_hdr.e_phnum > 0) {
+        prog_hdr_arr = parse_elf64_phdrs(file, &file_hdr);
+        print_elf64_phdrs(prog_hdr_arr, &file_hdr);
+    } else {
+        printf("NOTE: No program (segment) headers were found.\n\n");
+    }
 
     // Cleanup
     free(sec_hdr_arr);
+    free(prog_hdr_arr);
     fclose(file);
 
     return 0;
