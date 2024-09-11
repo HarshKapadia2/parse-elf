@@ -59,9 +59,14 @@ typedef struct {
 elf64_hdr parse_elf64_hdr(FILE *file);
 elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr);
 elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr);
+char *get_sec_name_data(FILE *file, const elf64_hdr *file_hdr,
+                        elf64_shdr sec_hdr);
+char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr);
+char *get_sec_data_using_offset(FILE *file, uint64_t file_offset,
+                                uint64_t sec_data_size);
 void print_elf64_hdr(const elf64_hdr *file_hdr);
-void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr,
-                       const elf64_hdr *file_hdr);
+void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
+                       char *shstrtab);
 void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
                        const elf64_hdr *file_hdr);
 void get_magic_bytes(FILE *file, unsigned char *magic_bytes);
