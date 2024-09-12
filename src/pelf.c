@@ -245,6 +245,11 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
 
 // Get the section header string table contents
 char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
+    if (file_hdr->e_shstrndx == SHN_UNDEF) {
+        printf("NOTE: Empty section name string table.\n\n");
+        return NULL;
+    }
+
     elf64_shdr *shstrtab_sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
 
     if (shstrtab_sec_hdr == NULL) {
@@ -329,8 +334,8 @@ void print_elf64_hdr(const elf64_hdr *file_hdr) {
     printf("-> No. of program (segment) headers: %d\n", file_hdr->e_phnum);
     printf("-> Section header size: %d B\n", file_hdr->e_shentsize);
     printf("-> No. of section headers: %d\n", file_hdr->e_shnum);
-    printf("-> Section headers' string table's index: Index '%d' in section "
-           "headers\n",
+    printf("-> Index of the 'section name string table' section header in the "
+           "section header table: %d\n",
            file_hdr->e_shstrndx);
     printf("\n\n");
 }
