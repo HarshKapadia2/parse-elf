@@ -77,6 +77,9 @@ int main(int argc, char *argv[]) {
         printf("NOTE: No program (segment) headers were found.\n\n");
     }
 
+    // List dynamically loaded dependencies if they exist
+    print_dynamic_deps(file, &file_hdr, sec_hdr_arr);
+
     // Cleanup
     free(sec_hdr_arr);
     free(shstrtab);
@@ -156,6 +159,61 @@ elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr) {
     return prog_hdr_arr;
 }
 
+// Print the names and locations of dynamically loaded
+// libraries/dependencies
+void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
+                        const elf64_shdr *sec_hdr_arr) {
+    int dyn_shdr_idx = -1;
+    char *dynstr_sec_data =
+        get_sec_data_using_name(file, sec_hdr_arr, file_hdr, ".dynstr");
+
+    // Find '.dynamic' section header
+    for (int i = 0; i < file_hdr->e_shnum; i++) {
+        const elf64_shdr sec_hdr = sec_hdr_arr[i];
+
+        if (sec_hdr.sh_type == 0x6) {
+            dyn_shdr_idx = i;
+            break;
+        }
+    }
+
+    if (dyn_shdr_idx < 0) {
+        printf("NOTE: No dynamic section was found.\n\n");
+        return;
+    }
+
+    // Get the 'elf64_dyn' entries in the dynamic section
+    const elf64_shdr dyn_shdr = sec_hdr_arr[dyn_shdr_idx];
+    uint64_t dyn_sec_offset = dyn_shdr.sh_offset;
+    uint64_t dyn_sec_size = dyn_shdr.sh_size;
+    uint64_t dyn_ent_size = dyn_shdr.sh_entsize;
+    int dyn_ent_num = dyn_sec_size / dyn_ent_size;
+
+    elf64_dyn *dyn_ent_arr = malloc(dyn_ent_num * sizeof(elf64_dyn));
+
+    fseek(file, dyn_sec_offset, SEEK_SET);
+    fread(dyn_ent_arr, sizeof(elf64_dyn), dyn_ent_num, file);
+
+    // Print the library names
+    printf("Dynamic dependencies listed in ELF:\n");
+    for (int i = 0; i < dyn_ent_num; i++) {
+        elf64_dyn dyn_ent = dyn_ent_arr[i];
+
+        if (dyn_ent.d_tag == 1) {
+            uint64_t str_tab_offset = dyn_ent.d_val;
+
+            printf("-> %s\n", (dynstr_sec_data + str_tab_offset));
+        }
+    }
+    printf("\n");
+    printf("NOTE: Each dependency might have its own dependencies.\n");
+    printf("\n");
+
+    // Cleanup
+    free(dyn_ent_arr);
+    free(dynstr_sec_data);
+}
+
 // Get the section header string table contents
 char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
     elf64_shdr *shstrtab_sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
@@ -169,6 +227,26 @@ char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
         file, shstrtab_sec_hdr->sh_offset, shstrtab_sec_hdr->sh_size);
 
     return shstrtab;
+}
+
+// Get section data using its name
+char *get_sec_data_using_name(FILE *file, const elf64_shdr *sec_hdr_arr,
+                              const elf64_hdr *file_hdr, char *sec_name) {
+    char *shstrtab = get_shstrtab(file, file_hdr);
+
+    for (int i = 0; i < file_hdr->e_shnum; i++) {
+        const elf64_shdr sec_hdr = sec_hdr_arr[i];
+        char *curr_sec_name = shstrtab + sec_hdr.sh_name;
+
+        if (strcmp(sec_name, curr_sec_name) == 0) {
+            free(shstrtab);
+            return get_sec_data_using_offset(file, sec_hdr.sh_offset,
+                                             sec_hdr.sh_size);
+        }
+    }
+
+    free(shstrtab);
+    return NULL;
 }
 
 // Get section data using its size and an offset into the file
@@ -228,7 +306,8 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
     printf("[No.]\tName\n");
     printf("\tType\t\tAddress\t\tOffset\n");
     printf("\tSize\t\tEntSize\t\tFlags  Link  \tInfo  Align\n");
-    printf("-------------------------------------------------------------------"
+    printf("---------------------------------------------------------------"
+           "----"
            "--\n");
 
     for (int i = 0; i < num_sec; i++) {
@@ -252,7 +331,8 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
         printf("%d     ", sec_hdr.sh_info);
         printf("%lu", sec_hdr.sh_addralign);
 
-        printf("\n-------------------------------------------------------------"
+        printf("\n---------------------------------------------------------"
+               "----"
                "--------\n");
     }
 
@@ -265,7 +345,8 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
     printf("ELF File Segment (Program) Headers:\n");
     printf("Type\t\tOffset\t\tVirtAddr\tPhysAddr\n");
     printf("\t\tFileSiz\t\tMemSiz\t\tFlags  Align\n");
-    printf("-------------------------------------------------------------------"
+    printf("---------------------------------------------------------------"
+           "----"
            "--\n");
 
     for (int i = 0; i < file_hdr->e_phnum; i++) {
@@ -283,7 +364,8 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
         printf("%#x    ", prog_hdr.p_flags);
         printf("%#lx", prog_hdr.p_align);
 
-        printf("\n-------------------------------------------------------------"
+        printf("\n---------------------------------------------------------"
+               "----"
                "--------\n");
     }
 

@@ -55,13 +55,26 @@ typedef struct {
     uint64_t p_align;
 } elf64_phdr;
 
+// 64-bit ELF dynamic section entry
+typedef struct {
+    uint64_t d_tag;
+    union {
+        uint64_t d_val;
+        uint64_t d_ptr;
+    };
+} elf64_dyn;
+
 // Function declarations
 elf64_hdr parse_elf64_hdr(FILE *file);
 elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr);
 elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr);
+void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
+                        const elf64_shdr *sec_hdr_arr);
 char *get_sec_name_data(FILE *file, const elf64_hdr *file_hdr,
                         elf64_shdr sec_hdr);
 char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr);
+char *get_sec_data_using_name(FILE *file, const elf64_shdr *sec_hdr_arr,
+                              const elf64_hdr *file_hdr, char *sec_name);
 char *get_sec_data_using_offset(FILE *file, uint64_t file_offset,
                                 uint64_t sec_data_size);
 void print_elf64_hdr(const elf64_hdr *file_hdr);
