@@ -258,7 +258,7 @@ Type            Offset          VirtAddr        PhysAddr
 ---------------------------------------------------------------------
 
 
-Dynamic dependencies listed in ELF:
+Dynamic dependencies listed in the ELF file:
 -> libm.so.6
 -> libtinfo.so.6
 -> libselinux.so.1

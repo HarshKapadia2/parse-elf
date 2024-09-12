@@ -224,7 +224,7 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
     fread(dyn_ent_arr, sizeof(elf64_dyn), dyn_ent_num, file);
 
     // Print the library names
-    printf("Dynamic dependencies listed in ELF:\n");
+    printf("Dynamic dependencies listed in the ELF file:\n");
     for (int i = 0; i < dyn_ent_num; i++) {
         elf64_dyn dyn_ent = dyn_ent_arr[i];
 
