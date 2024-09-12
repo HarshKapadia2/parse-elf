@@ -3,17 +3,15 @@
 #include <stddef.h> // For 'NULL'
 #include <stdio.h>  // For file functions, printf()
 #include <stdlib.h> // For malloc(), free()
-#include <string.h> // For memcmp()
-
-FILE *file_temp;
+#include <string.h> // For memcmp(), strcmp()
 
 int main(int argc, char *argv[]) {
     char *file_path = NULL;
 
     // Get file path from command line args
     if (argc < 2) {
-        printf("ERROR: Insufficient arguments.\n");
-        // TODO: usage();
+        printf("ERROR: Insufficient arguments. Please provide a path to a "
+               "64-bit ELF file.\n\n");
         return 1;
     } else {
         file_path = argv[1];
@@ -22,7 +20,7 @@ int main(int argc, char *argv[]) {
     // Try to open file
     FILE *file = fopen(file_path, "rb");
     if (file == NULL) {
-        printf("ERROR: Could not open file '%s': %s", file_path,
+        printf("ERROR: Could not open file '%s': %s\n\n", file_path,
                strerror(errno));
         return 2;
     }
@@ -30,10 +28,11 @@ int main(int argc, char *argv[]) {
     // Check if file is ELF
     unsigned char magic_bytes[MAGIC_BYTE_COUNT];
     get_magic_bytes(file, magic_bytes);
+
     if (!is_magic_bytes_elf(magic_bytes)) {
         fclose(file);
         printf("ERROR: File at '%s' does not have ELF header, got: %02x %02x "
-               "%02x %02x\n",
+               "%02x %02x\n\n",
                file_path, magic_bytes[0], magic_bytes[1], magic_bytes[2],
                magic_bytes[3]);
         return 2;
@@ -42,45 +41,79 @@ int main(int argc, char *argv[]) {
     // Check if ELF file is a 64-bit ELF
     if (get_elf_class(file) != 2) {
         fclose(file);
-        printf("ERROR: This utility can only parse 64-bit ELF files.\n");
+        printf("ERROR: This utility can only parse 64-bit ELF files.\n\n");
         return 1;
     }
 
-    printf("64-bit ELF File Parser\n\n");
+    printf("64-bit ELF File Parser\n\n\n");
     printf("ELF details and value translations: "
            "https://en.wikipedia.org/wiki/Executable_and_Linkable_Format\n\n");
-    printf("ELF file path: %s\n\n", file_path);
+    printf("ELF file path: %s\n\n\n", file_path);
 
-    file_temp = file;
+    // Print ELF file header
+    elf64_hdr *file_hdr = parse_elf64_hdr(file);
 
-    // Parse ELF file header
-    elf64_hdr file_hdr = parse_elf64_hdr(file);
-    print_elf64_hdr(&file_hdr);
+    if (file_hdr == NULL) {
+        fclose(file);
+        printf("ERROR: File header could not be parsed.\n\n");
+        return 3;
+    }
 
-    // Parse ELF section headers
+    print_elf64_hdr(file_hdr);
+
+    // Print ELF section headers
     elf64_shdr *sec_hdr_arr = NULL;
     char *shstrtab = NULL;
-    if (file_hdr.e_shnum > 0) {
-        sec_hdr_arr = parse_elf64_shdrs(file, &file_hdr);
-        shstrtab = get_shstrtab(file, &file_hdr);
-        print_elf64_shdrs(sec_hdr_arr, file_hdr.e_shnum, shstrtab);
+    if (file_hdr->e_shnum > 0) {
+        sec_hdr_arr = parse_elf64_shdrs(file, file_hdr);
+
+        if (sec_hdr_arr == NULL) {
+            fclose(file);
+            free(file_hdr);
+            printf("ERROR: Section headers could not be parsed.\n\n");
+            return 3;
+        }
+
+        shstrtab = get_shstrtab(file, file_hdr);
+
+        if (shstrtab == NULL) {
+            fclose(file);
+            free(file_hdr);
+            free(sec_hdr_arr);
+            printf(
+                "ERROR: Section header string table could not be parsed.\n\n");
+            return 3;
+        }
+
+        print_elf64_shdrs(sec_hdr_arr, file_hdr->e_shnum, shstrtab);
     } else {
         printf("NOTE: No section headers were found.\n\n");
     }
 
-    // Parse ELF segment (program) headers
+    // Print ELF segment (program) headers
     elf64_phdr *prog_hdr_arr = NULL;
-    if (file_hdr.e_phnum > 0) {
-        prog_hdr_arr = parse_elf64_phdrs(file, &file_hdr);
-        print_elf64_phdrs(prog_hdr_arr, &file_hdr);
+    if (file_hdr->e_phnum > 0) {
+        prog_hdr_arr = parse_elf64_phdrs(file, file_hdr);
+
+        if (shstrtab == NULL) {
+            fclose(file);
+            free(file_hdr);
+            free(sec_hdr_arr);
+            free(shstrtab);
+            printf("ERROR: Program (segment) headers could not be parsed.\n\n");
+            return 3;
+        }
+
+        print_elf64_phdrs(prog_hdr_arr, file_hdr);
     } else {
         printf("NOTE: No program (segment) headers were found.\n\n");
     }
 
-    // List dynamically loaded dependencies if they exist
-    print_dynamic_deps(file, &file_hdr, sec_hdr_arr);
+    // Print dynamic dependencies
+    print_dynamic_deps(file, file_hdr, sec_hdr_arr);
 
     // Cleanup
+    free(file_hdr);
     free(sec_hdr_arr);
     free(shstrtab);
     free(prog_hdr_arr);
@@ -110,48 +143,36 @@ uint8_t get_elf_class(FILE *file) {
 }
 
 // Parse the 64-bit ELF file header
-elf64_hdr parse_elf64_hdr(FILE *file) {
-    fseek(file, 0L, SEEK_SET);
-    elf64_hdr header;
-    fread(&header, sizeof(header), 1, file);
+elf64_hdr *parse_elf64_hdr(FILE *file) {
+    elf64_hdr *file_hdr = (elf64_hdr *)malloc(sizeof(elf64_hdr));
 
-    return header;
+    fseek(file, 0L, SEEK_SET);
+    fread(file_hdr, sizeof(elf64_hdr), 1, file);
+
+    return file_hdr;
 }
 
 // Parse all the 64-bit ELF section headers
 elf64_shdr *parse_elf64_shdrs(FILE *file, const elf64_hdr *file_hdr) {
     elf64_shdr *sec_hdr_arr = malloc(file_hdr->e_shnum * sizeof(elf64_shdr));
 
+    if (sec_hdr_arr == NULL) {
+        return NULL;
+    }
+
     fseek(file, file_hdr->e_shoff, SEEK_SET);
     fread(sec_hdr_arr, sizeof(elf64_shdr), file_hdr->e_shnum, file);
 
     return sec_hdr_arr;
-
-    // TODO: Figure out why the code block below doesn't work
-    //    elf64_shdr **sec_hdr_arr =
-    //        (elf64_shdr **)malloc(sizeof(elf64_shdr *) * file_hdr->e_shnum);
-    //    // uint64_t shdr_offset = file_hdr->e_shoff;
-    //
-    //    fseek(file, file_hdr->e_shoff, SEEK_SET);
-    //
-    //    for (int i = 0; i < file_hdr->e_shnum; i++) {
-    //        elf64_shdr *sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
-    //
-    //        // fseek(file, shdr_offset, SEEK_SET);
-    //        fread(sec_hdr, sizeof(file_hdr->e_shentsize), 1, file);
-    //        sec_hdr_arr[i] = sec_hdr;
-    //
-    //        // printf("Size: %lu\n", sec_hdr->sh_size);
-    //
-    //        // shdr_offset = shdr_offset + file_hdr->e_shentsize;
-    //    }
-    //
-    //    return sec_hdr_arr;
 }
 
 // Parse all the 64-bit ELF segment (program) headers
 elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr) {
     elf64_phdr *prog_hdr_arr = malloc(file_hdr->e_phnum * sizeof(elf64_phdr));
+
+    if (prog_hdr_arr == NULL) {
+        return NULL;
+    }
 
     fseek(file, file_hdr->e_phoff, SEEK_SET);
     fread(prog_hdr_arr, sizeof(elf64_phdr), file_hdr->e_phnum, file);
@@ -178,6 +199,7 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
     }
 
     if (dyn_shdr_idx < 0) {
+        free(dynstr_sec_data);
         printf("NOTE: No dynamic section was found.\n\n");
         return;
     }
@@ -190,6 +212,13 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
     int dyn_ent_num = dyn_sec_size / dyn_ent_size;
 
     elf64_dyn *dyn_ent_arr = malloc(dyn_ent_num * sizeof(elf64_dyn));
+
+    if (dyn_ent_arr == NULL) {
+        free(dynstr_sec_data);
+        printf("NOTE: No memory could be allocated for dynamic section "
+               "entries.\n\n");
+        return;
+    }
 
     fseek(file, dyn_sec_offset, SEEK_SET);
     fread(dyn_ent_arr, sizeof(elf64_dyn), dyn_ent_num, file);
@@ -207,7 +236,7 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
     }
     printf("\n");
     printf("NOTE: Each dependency might have its own dependencies.\n");
-    printf("\n");
+    printf("\n\n");
 
     // Cleanup
     free(dyn_ent_arr);
@@ -217,6 +246,10 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
 // Get the section header string table contents
 char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
     elf64_shdr *shstrtab_sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
+
+    if (shstrtab_sec_hdr == NULL) {
+        return NULL;
+    }
 
     fseek(file,
           (file_hdr->e_shoff + (file_hdr->e_shstrndx * sizeof(elf64_shdr))),
@@ -266,49 +299,57 @@ char *get_sec_data_using_offset(FILE *file, uint64_t file_offset,
 
 // Print the 64-bit ELF file header
 void print_elf64_hdr(const elf64_hdr *file_hdr) {
-    printf("ELF File file_header:\n");
+    printf("ELF File 'File Header':\n\n");
 
     if (file_hdr == NULL) {
-        printf("Empty\n");
+        printf("NOTE: Empty.\n\n");
         return;
     }
 
-    printf("Magic number: %#02x %#02x %#02x %#02x (%#02x %c %c %c)\n",
+    printf("-> Magic number: %#02x %#02x %#02x %#02x (%#02x %c %c %c)\n",
            file_hdr->e_ident[0], file_hdr->e_ident[1], file_hdr->e_ident[2],
            file_hdr->e_ident[3], file_hdr->e_ident[0], file_hdr->e_ident[1],
            file_hdr->e_ident[2], file_hdr->e_ident[3]);
-    printf("Class: %d\n", file_hdr->e_ident[4]);
-    printf("Data (Endianness): %d\n", file_hdr->e_ident[5]);
-    printf("Version: %d\n", file_hdr->e_ident[6]);
-    printf("OS/ABI: %#02x\n", file_hdr->e_ident[7]);
-    printf("ABI version: %#02x\n", file_hdr->e_ident[8]);
-    printf("Type: %#04x\n", file_hdr->e_type);
-    printf("Machine: %#03x\n", file_hdr->e_machine);
-    printf("Version: %d\n", file_hdr->e_version);
-    printf("Entry address: %#lx\n", file_hdr->e_entry);
-    printf("Program file_hdr offset: %lu B into the file\n", file_hdr->e_phoff);
-    printf("Section file_hdr offset: %lu B into the file\n", file_hdr->e_shoff);
-    printf("Flags: %#x\n", file_hdr->e_flags);
-    printf("This file_hdr's size: %d B\n", file_hdr->e_ehsize);
-    printf("Program file_hdr entry size: %d B\n", file_hdr->e_phentsize);
-    printf("No. of program file_hdr entries: %d\n", file_hdr->e_phnum);
-    printf("Section file_hdr entry size: %d B\n", file_hdr->e_shentsize);
-    printf("No. of section file_hdr entries: %d\n", file_hdr->e_shnum);
-    printf("Section file_hdr string index table offset: %d\n",
+    printf("-> Class: %d\n", file_hdr->e_ident[4]);
+    printf("-> Data (Endianness): %d\n", file_hdr->e_ident[5]);
+    printf("-> Version: %d\n", file_hdr->e_ident[6]);
+    printf("-> OS/ABI: %#02x\n", file_hdr->e_ident[7]);
+    printf("-> ABI version: %#02x\n", file_hdr->e_ident[8]);
+    printf("-> Type: %#04x\n", file_hdr->e_type);
+    printf("-> Machine: %#03x\n", file_hdr->e_machine);
+    printf("-> Version: %d\n", file_hdr->e_version);
+    printf("-> Entry address: %#lx\n", file_hdr->e_entry);
+    printf("-> Program (segment) header table offset: %lu B into the file\n",
+           file_hdr->e_phoff);
+    printf("-> Section header table offset: %lu B into the file\n",
+           file_hdr->e_shoff);
+    printf("-> Flags: %#x\n", file_hdr->e_flags);
+    printf("-> This header's size: %d B\n", file_hdr->e_ehsize);
+    printf("-> Program (segment) header size: %d B\n", file_hdr->e_phentsize);
+    printf("-> No. of program (segment) headers: %d\n", file_hdr->e_phnum);
+    printf("-> Section header size: %d B\n", file_hdr->e_shentsize);
+    printf("-> No. of section headers: %d\n", file_hdr->e_shnum);
+    printf("-> Section headers' string table's index: Index '%d' in section "
+           "headers\n",
            file_hdr->e_shstrndx);
-    printf("\n");
+    printf("\n\n");
 }
 
 // Print all the 64-bit ELF section headers
 void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
                        char *shstrtab) {
-    printf("ELF File Section Headers:\n");
+    printf("ELF File Section Headers:\n\n");
+
+    if (sec_hdr_arr == NULL) {
+        printf("NOTE: Empty.\n\n");
+        return;
+    }
+
     printf("[No.]\tName\n");
     printf("\tType\t\tAddress\t\tOffset\n");
     printf("\tSize\t\tEntSize\t\tFlags  Link  \tInfo  Align\n");
     printf("---------------------------------------------------------------"
-           "----"
-           "--\n");
+           "------\n");
 
     for (int i = 0; i < num_sec; i++) {
         const elf64_shdr sec_hdr = sec_hdr_arr[i];
@@ -332,22 +373,26 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
         printf("%lu", sec_hdr.sh_addralign);
 
         printf("\n---------------------------------------------------------"
-               "----"
-               "--------\n");
+               "------------\n");
     }
 
-    printf("\n");
+    printf("\n\n");
 }
 
 // Print all the 64-bit ELF segment (program) headers
 void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
                        const elf64_hdr *file_hdr) {
-    printf("ELF File Segment (Program) Headers:\n");
+    printf("ELF File Segment (Program) Headers:\n\n");
+
+    if (prog_hdr_arr == NULL) {
+        printf("NOTE: Empty.\n\n");
+        return;
+    }
+
     printf("Type\t\tOffset\t\tVirtAddr\tPhysAddr\n");
     printf("\t\tFileSiz\t\tMemSiz\t\tFlags  Align\n");
     printf("---------------------------------------------------------------"
-           "----"
-           "--\n");
+           "------\n");
 
     for (int i = 0; i < file_hdr->e_phnum; i++) {
         const elf64_phdr prog_hdr = prog_hdr_arr[i];
@@ -365,10 +410,9 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
         printf("%#lx", prog_hdr.p_align);
 
         printf("\n---------------------------------------------------------"
-               "----"
-               "--------\n");
+               "------------\n");
     }
 
-    printf("\n");
+    printf("\n\n");
 }
 
