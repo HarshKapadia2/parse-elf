@@ -250,14 +250,36 @@ char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
         return NULL;
     }
 
+    uint32_t shstrndx;
+    if (file_hdr->e_shstrndx != SHN_XINDEX) {
+        shstrndx = file_hdr->e_shstrndx;
+    } else {
+        // file_hdr->e_shstrndx == SHN_XINDEX implies that the actual index
+        // value is stored elsewhere, which in this case is the first section
+        // header's sh_link member as per the standard
+
+        elf64_shdr *first_sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
+
+        if (first_sec_hdr == NULL) {
+            printf("NOTE: Couldn't allocate memory to set 'shstrndx'.\n\n");
+            return NULL;
+        }
+
+        fseek(file, file_hdr->e_shoff, SEEK_SET);
+        fread(first_sec_hdr, sizeof(elf64_shdr), 1, file);
+
+        shstrndx = first_sec_hdr->sh_link;
+
+        free(first_sec_hdr);
+    }
+
     elf64_shdr *shstrtab_sec_hdr = (elf64_shdr *)malloc(sizeof(elf64_shdr));
 
     if (shstrtab_sec_hdr == NULL) {
         return NULL;
     }
 
-    fseek(file,
-          (file_hdr->e_shoff + (file_hdr->e_shstrndx * sizeof(elf64_shdr))),
+    fseek(file, (file_hdr->e_shoff + (shstrndx * sizeof(elf64_shdr))),
           SEEK_SET);
     fread(shstrtab_sec_hdr, sizeof(elf64_shdr), 1, file);
 

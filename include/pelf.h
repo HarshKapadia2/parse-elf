@@ -8,6 +8,7 @@
 // Constants
 #define MAGIC_BYTE_COUNT 4
 #define SHN_UNDEF 0
+#define SHN_XINDEX 0xffff
 const char *ELF_MAGIC_BYTES = "\x7F"
                               "ELF";
 
