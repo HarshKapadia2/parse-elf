@@ -380,13 +380,18 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
 
     for (int i = 0; i < num_sec; i++) {
         const elf64_shdr sec_hdr = sec_hdr_arr[i];
+        char *sec_type_name = get_sec_type_name(sec_hdr.sh_type);
 
         printf("[%d]\t", i);
         printf("%s", (shstrtab + sec_hdr.sh_name));
 
         printf("\n\t");
 
-        printf("%s\t\t", get_sec_type_name(sec_hdr.sh_type));
+        if (sec_type_name == NULL) {
+            printf("%#x\t\t", sec_hdr.sh_type);
+        } else {
+            printf("%s\t\t", sec_type_name);
+        }
         printf("%#lx\t\t", sec_hdr.sh_addr);
         printf("%lu", sec_hdr.sh_offset);
 
@@ -506,7 +511,7 @@ char *get_sec_type_name(uint32_t sec_type) {
         return "NUM";
         break;
     default:
-        return "*****";
+        return NULL;
         break;
     }
 }
