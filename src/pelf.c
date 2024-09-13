@@ -386,7 +386,7 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
 
         printf("\n\t");
 
-        printf("%#x\t\t", sec_hdr.sh_type);
+        printf("%s\t\t", get_sec_type_name(sec_hdr.sh_type));
         printf("%#lx\t\t", sec_hdr.sh_addr);
         printf("%lu", sec_hdr.sh_offset);
 
@@ -441,5 +441,67 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
     }
 
     printf("\n\n");
+}
+
+char *get_sec_type_name(uint32_t sec_type) {
+    switch (sec_type) {
+    case 0x0:
+        return "NULL";
+        break;
+    case 0x1:
+        return "PROGBITS";
+        break;
+    case 0x2:
+        return "SYMTAB";
+        break;
+    case 0x3:
+        return "STRTAB";
+        break;
+    case 0x4:
+        return "RELA";
+        break;
+    case 0x5:
+        return "HASH";
+        break;
+    case 0x6:
+        return "DYNAMIC";
+        break;
+    case 0x7:
+        return "NOTE";
+        break;
+    case 0x8:
+        return "NOBITS";
+        break;
+    case 0x9:
+        return "REL";
+        break;
+    case 0x0A:
+        return "SHLIB";
+        break;
+    case 0x0B:
+        return "DYNSYM";
+        break;
+    case 0x0E:
+        return "INIT_ARRAY";
+        break;
+    case 0x0F:
+        return "FINI_ARRAY";
+        break;
+    case 0x10:
+        return "PREINIT_ARRAY";
+        break;
+    case 0x11:
+        return "GROUP";
+        break;
+    case 0x12:
+        return "SYMTAB_SHNDX";
+        break;
+    case 0x13:
+        return "NUM";
+        break;
+    default:
+        return "*****";
+        break;
+    }
 }
 

@@ -85,6 +85,7 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
 void get_magic_bytes(FILE *file, unsigned char *magic_bytes);
 uint8_t get_elf_class(FILE *file);
 bool is_magic_bytes_elf(const unsigned char *magic_bytes);
+char *get_sec_type_name(uint32_t sec_type);
 
 #endif // PELF_H
 
