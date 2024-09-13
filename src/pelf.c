@@ -423,8 +423,13 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
 
     for (int i = 0; i < file_hdr->e_phnum; i++) {
         const elf64_phdr prog_hdr = prog_hdr_arr[i];
+        char *seg_type_name = get_seg_type_name(prog_hdr.p_type);
 
-        printf("%#x\t\t", prog_hdr.p_type);
+        if (seg_type_name == NULL) {
+            printf("%#x\t\t", prog_hdr.p_type);
+        } else {
+            printf("%s\t\t", seg_type_name);
+        }
         printf("%#lx\t\t", prog_hdr.p_offset);
         printf("%#lx\t\t", prog_hdr.p_vaddr);
         printf("%#lx", prog_hdr.p_paddr);
@@ -443,6 +448,7 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
     printf("\n\n");
 }
 
+// Get the name of the section type from its numeric representation
 char *get_sec_type_name(uint32_t sec_type) {
     switch (sec_type) {
     case 0x0:
@@ -501,6 +507,39 @@ char *get_sec_type_name(uint32_t sec_type) {
         break;
     default:
         return "*****";
+        break;
+    }
+}
+
+// Get the name of the segment type from its numeric representation
+char *get_seg_type_name(uint32_t p_type) {
+    switch (p_type) {
+    case 0:
+        return "NULL";
+        break;
+    case 0x1:
+        return "LOAD";
+        break;
+    case 0x2:
+        return "DYNAMIC";
+        break;
+    case 0x3:
+        return "INTERP";
+        break;
+    case 0x4:
+        return "NOTE";
+        break;
+    case 0x5:
+        return "SHLIB";
+        break;
+    case 0x6:
+        return "PHDR";
+        break;
+    case 0x7:
+        return "TLS";
+        break;
+    default:
+        return NULL;
         break;
     }
 }
