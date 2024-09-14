@@ -381,6 +381,8 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
     for (int i = 0; i < num_sec; i++) {
         const elf64_shdr sec_hdr = sec_hdr_arr[i];
         char *sec_type_name = get_sec_type_name(sec_hdr.sh_type);
+        char *sec_flag_str = get_flag_str(sec_hdr.sh_flags, SEC_FLAG_VAL,
+                                          SEC_FLAG_STR, NUM_SEC_FLAGS);
 
         printf("[%d]\t", i);
         printf("%s", (shstrtab + sec_hdr.sh_name));
@@ -392,6 +394,7 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
         } else {
             printf("%s\t\t", sec_type_name);
         }
+
         printf("%#lx\t\t", sec_hdr.sh_addr);
         printf("%lu", sec_hdr.sh_offset);
 
@@ -399,14 +402,28 @@ void print_elf64_shdrs(const elf64_shdr *sec_hdr_arr, uint16_t num_sec,
 
         printf("%lu\t\t", sec_hdr.sh_size);
         printf("%lu\t\t", sec_hdr.sh_entsize);
-        printf("%#lx    ", sec_hdr.sh_flags);
+
+        if (sec_flag_str == NULL) {
+            printf("%#lx    ", sec_hdr.sh_flags);
+        } else {
+            printf("%s     ", sec_flag_str);
+        }
+
         printf("%d  \t", sec_hdr.sh_link);
         printf("%d     ", sec_hdr.sh_info);
         printf("%lu", sec_hdr.sh_addralign);
 
         printf("\n---------------------------------------------------------"
                "------------\n");
+
+        free(sec_flag_str);
     }
+
+    printf("\nSection Header flag legend:\n"
+           "W (write), A (alloc), X (execute), M (merge), S (strings),\n"
+           "I (info), L (link order), O (extra OS processing required),\n"
+           "G (group), T (TLS), o (OS specific), P (processor specific),\n"
+           "R (ordered), E (exclude)\n");
 
     printf("\n\n");
 }
@@ -429,12 +446,15 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
     for (int i = 0; i < file_hdr->e_phnum; i++) {
         const elf64_phdr prog_hdr = prog_hdr_arr[i];
         char *seg_type_name = get_seg_type_name(prog_hdr.p_type);
+        char *seg_flag_str = get_flag_str(prog_hdr.p_flags, SEG_FLAG_VAL,
+                                          SEG_FLAG_STR, NUM_SEG_FLAGS);
 
         if (seg_type_name == NULL) {
             printf("%#x\t\t", prog_hdr.p_type);
         } else {
             printf("%s\t\t", seg_type_name);
         }
+
         printf("%#lx\t\t", prog_hdr.p_offset);
         printf("%#lx\t\t", prog_hdr.p_vaddr);
         printf("%#lx", prog_hdr.p_paddr);
@@ -443,14 +463,60 @@ void print_elf64_phdrs(const elf64_phdr *prog_hdr_arr,
 
         printf("%#lx\t\t", prog_hdr.p_filesz);
         printf("%#lx\t\t", prog_hdr.p_memsz);
-        printf("%#x    ", prog_hdr.p_flags);
+
+        if (seg_flag_str == NULL) {
+            printf("%#x    ", prog_hdr.p_flags);
+        } else {
+            printf("%s     ", seg_flag_str);
+        }
+
         printf("%#lx", prog_hdr.p_align);
 
         printf("\n---------------------------------------------------------"
                "------------\n");
+
+        free(seg_flag_str);
     }
 
+    printf("\nProgram (Segment) Header flag legend:\n"
+           "X (execute), W (write), R (read) \n");
+
     printf("\n\n");
+}
+
+// Get flag combination string
+char *get_flag_str(uint64_t target_total, const uint64_t flag_val_arr[],
+                   const char *flag_str_arr[], int num_flags) {
+    char *flag_str = (char *)malloc(20 * sizeof(char));
+    char *flag_str_ptr = flag_str;
+
+    if (flag_str == NULL) {
+        return NULL;
+    }
+
+    for (int i = num_flags - 1; i >= 0; i--) {
+        const uint64_t flag_val = flag_val_arr[i];
+
+        if (flag_val <= target_total) {
+            *flag_str_ptr = *flag_str_arr[i];
+            flag_str_ptr++;
+
+            target_total = target_total - flag_val;
+
+            if (target_total == 0) {
+                break;
+            }
+        }
+    }
+
+    if (target_total == 0) {
+        *flag_str_ptr = '\0';
+
+        return flag_str;
+    } else {
+        free(flag_str);
+        return NULL;
+    }
 }
 
 // Get the name of the section type from its numeric representation
