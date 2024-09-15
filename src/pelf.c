@@ -184,37 +184,25 @@ elf64_phdr *parse_elf64_phdrs(FILE *file, const elf64_hdr *file_hdr) {
 // libraries/dependencies
 void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
                         const elf64_shdr *sec_hdr_arr) {
-    int dyn_shdr_idx = -1;
-    char *dynstr_sec_data =
-        get_sec_data_using_name(file, sec_hdr_arr, file_hdr, ".dynstr");
+    // Get the '.dynamic' section header
+    const elf64_shdr *dyn_shdr =
+        get_sec_hdr_using_name(file, sec_hdr_arr, file_hdr, ".dynamic");
 
-    // Find '.dynamic' section header
-    for (int i = 0; i < file_hdr->e_shnum; i++) {
-        const elf64_shdr sec_hdr = sec_hdr_arr[i];
-
-        if (sec_hdr.sh_type == 0x6) {
-            dyn_shdr_idx = i;
-            break;
-        }
-    }
-
-    if (dyn_shdr_idx < 0) {
-        free(dynstr_sec_data);
+    if (dyn_shdr == NULL) {
         printf("NOTE: No dynamic section was found.\n\n");
         return;
     }
 
-    // Get the 'elf64_dyn' entries in the dynamic section
-    const elf64_shdr dyn_shdr = sec_hdr_arr[dyn_shdr_idx];
-    uint64_t dyn_sec_offset = dyn_shdr.sh_offset;
-    uint64_t dyn_sec_size = dyn_shdr.sh_size;
-    uint64_t dyn_ent_size = dyn_shdr.sh_entsize;
+    // Get the 'elf64_dyn' entries in the '.dynamic' section
+    uint64_t dyn_sec_offset = dyn_shdr->sh_offset;
+    uint64_t dyn_sec_size = dyn_shdr->sh_size;
+    uint64_t dyn_ent_size = dyn_shdr->sh_entsize;
     int dyn_ent_num = dyn_sec_size / dyn_ent_size;
 
     elf64_dyn *dyn_ent_arr = malloc(dyn_ent_num * sizeof(elf64_dyn));
 
     if (dyn_ent_arr == NULL) {
-        free(dynstr_sec_data);
+        free((void *)dyn_shdr);
         printf("NOTE: No memory could be allocated for dynamic section "
                "entries.\n\n");
         return;
@@ -222,6 +210,17 @@ void print_dynamic_deps(FILE *file, const elf64_hdr *file_hdr,
 
     fseek(file, dyn_sec_offset, SEEK_SET);
     fread(dyn_ent_arr, sizeof(elf64_dyn), dyn_ent_num, file);
+
+    // Get the contents of the '.dynstr' section
+    char *dynstr_sec_data =
+        get_sec_data_using_name(file, sec_hdr_arr, file_hdr, ".dynstr");
+
+    if (dynstr_sec_data == NULL) {
+        free((void *)dyn_shdr);
+        free(dyn_ent_arr);
+        printf("NOTE: No dynamic section was found.\n\n");
+        return;
+    }
 
     // Print the library names
     printf("Dynamic dependencies listed in the ELF file:\n");
@@ -287,6 +286,27 @@ char *get_shstrtab(FILE *file, const elf64_hdr *file_hdr) {
         file, shstrtab_sec_hdr->sh_offset, shstrtab_sec_hdr->sh_size);
 
     return shstrtab;
+}
+
+// Get a section header using its name
+const elf64_shdr *get_sec_hdr_using_name(FILE *file,
+                                         const elf64_shdr *sec_hdr_arr,
+                                         const elf64_hdr *file_hdr,
+                                         char *sec_name) {
+    char *shstrtab = get_shstrtab(file, file_hdr);
+
+    for (int i = 0; i < file_hdr->e_shnum; i++) {
+        const elf64_shdr sec_hdr = sec_hdr_arr[i];
+        char *curr_sec_name = shstrtab + sec_hdr.sh_name;
+
+        if (strcmp(sec_name, curr_sec_name) == 0) {
+            free(shstrtab);
+            return &(sec_hdr_arr[i]);
+        }
+    }
+
+    free(shstrtab);
+    return NULL;
 }
 
 // Get section data using its name
